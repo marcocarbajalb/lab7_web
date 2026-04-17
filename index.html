@@ -33,8 +33,38 @@
         border: 1px solid #2a2a2a;
       }
 
+      .cell { transition: background-color 0.08s; }
       .cell.snake { background-color: rgb(69, 187, 95); }
       .cell.food  { background-color: rgb(149, 7, 7); }
+
+      /* Pantalla de inicio / Game Over */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.78);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+
+      .overlay h2 { font-size: 20px; letter-spacing: 2px; }
+      .overlay p  { font-size: 11px; color: #aaa; }
+
+      .overlay button {
+        margin-top: 8px;
+        padding: 10px 24px;
+        font-family: monospace;
+        font-size: 13px;
+        background-color: rgb(69, 187, 95);
+        color: #111;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .overlay button:hover { opacity: 0.85; }
     </style>
   </head>
 
@@ -42,10 +72,16 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useRef } = React;
 
       const COLS = 20;
       const ROWS = 20;
+
+      const INITIAL_SNAKE = [
+        { x: 10, y: 10 },
+        { x: 9,  y: 10 },
+        { x: 8,  y: 10 },
+      ];
 
       // Muestra el puntaje actual
       function Score({ score }) {
@@ -88,43 +124,66 @@
         return <div className="board">{cells}</div>;
       }
 
+      // Pantalla de inicio y de game over
+      function Overlay({ gameOver, score, onStart }) {
+        return (
+          <div className="overlay">
+            <h2>{gameOver ? "GAME OVER" : "SNAKE"}</h2>
+            {gameOver && <p>Puntaje final: {score}</p>}
+            <p>Usa las flechas del teclado para moverte</p>
+            <button onClick={onStart}>
+              {gameOver ? "Jugar de nuevo" : "Jugar"}
+            </button>
+          </div>
+        );
+      }
+
       // Componente principal: maneja el estado del juego
       function Game() {
-        const [snake, setSnake] = useState([
-          { x: 10, y: 10 },
-          { x: 9,  y: 10 },
-          { x: 8,  y: 10 },
-        ]);
-
-        const [food, setFood] = useState({ x: 15, y: 10 });
-
-        const [direction, setDirection] = useState({ x: 1, y: 0 });
-
-        const [score, setScore] = useState(0);
-
+        const [snake, setSnake]     = useState(INITIAL_SNAKE);
+        const [food, setFood]       = useState({ x: 15, y: 10 });
+        const [score, setScore]     = useState(0);
         const [gameOver, setGameOver] = useState(false);
+        const [started, setStarted] = useState(false);
 
-        // Captura las teclas de flecha y cambia la dirección
+        // useRef para la dirección: el intervalo siempre lee el valor
+        // más reciente sin necesitar reiniciarse cuando cambia la tecla
+        const directionRef = useRef({ x: 1, y: 0 });
+
+        function handleStart() {
+          setSnake(INITIAL_SNAKE);
+          setFood({ x: 15, y: 10 });
+          setScore(0);
+          setGameOver(false);
+          directionRef.current = { x: 1, y: 0 };
+          setStarted(true);
+        }
+
+        // Captura las teclas de flecha y actualiza el ref
         useEffect(() => {
           function handleKeyDown(e) {
-            if (e.key === "ArrowUp")    setDirection({ x: 0, y: -1 });
-            if (e.key === "ArrowDown")  setDirection({ x: 0, y: 1 });
-            if (e.key === "ArrowLeft")  setDirection({ x: -1, y: 0 });
-            if (e.key === "ArrowRight") setDirection({ x: 1, y: 0 });
+            const { x, y } = directionRef.current;
+
+            // Evitar dirección inversa (ej: si vas a la derecha no puedes ir a la izquierda)
+            if (e.key === "ArrowUp"    && y !== 1)  directionRef.current = { x: 0, y: -1 };
+            if (e.key === "ArrowDown"  && y !== -1) directionRef.current = { x: 0, y: 1 };
+            if (e.key === "ArrowLeft"  && x !== 1)  directionRef.current = { x: -1, y: 0 };
+            if (e.key === "ArrowRight" && x !== -1) directionRef.current = { x: 1, y: 0 };
           }
 
           window.addEventListener("keydown", handleKeyDown);
           return () => window.removeEventListener("keydown", handleKeyDown);
         }, []);
 
-        // Loop del juego: mueve la serpiente cada 150ms
+        // Loop del juego: corre a ritmo constante, sin reiniciarse al cambiar dirección
         useEffect(() => {
-          if (gameOver) return;
+          if (!started || gameOver) return;
 
           const interval = setInterval(() => {
             setSnake(prevSnake => {
-              const head = prevSnake[0];
-              const newHead = { x: head.x + direction.x, y: head.y + direction.y };
+              const { x: dx, y: dy } = directionRef.current;
+              const head    = prevSnake[0];
+              const newHead = { x: head.x + dx, y: head.y + dy };
 
               // Colisión con paredes
               if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
@@ -133,35 +192,36 @@
               }
 
               // Colisión con sí misma
-              const hitSelf = prevSnake.some(s => s.x === newHead.x && s.y === newHead.y);
-              if (hitSelf) {
+              if (prevSnake.some(s => s.x === newHead.x && s.y === newHead.y)) {
                 setGameOver(true);
                 return prevSnake;
               }
 
-              // Crecer si come la comida
+              // Come la comida: crece y genera nueva comida
               if (newHead.x === food.x && newHead.y === food.y) {
                 setScore(prev => prev + 1);
                 setFood({
                   x: Math.floor(Math.random() * COLS),
                   y: Math.floor(Math.random() * ROWS),
                 });
-                return [newHead, ...prevSnake]; // no se elimina la cola
+                return [newHead, ...prevSnake];
               }
 
-              // Movimiento normal: nueva cabeza, se elimina la cola
+              // Movimiento normal
               return [newHead, ...prevSnake.slice(0, -1)];
             });
           }, 150);
 
           return () => clearInterval(interval);
-        }, [direction, food, gameOver]);
+        }, [started, gameOver, food]);
 
         return (
           <div>
             <Score score={score} />
             <Board snakeSegments={snake} foodPosition={food} />
-            {gameOver && <p>Game Over</p>}
+            {(!started || gameOver) && (
+              <Overlay gameOver={gameOver} score={score} onStart={handleStart} />
+            )}
           </div>
         );
       }

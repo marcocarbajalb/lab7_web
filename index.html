@@ -30,6 +30,7 @@
       .cell {
         width: 20px;
         height: 20px;
+        border: 1px solid #2a2a2a;
       }
 
       .cell.snake { background-color: limegreen; }
@@ -41,7 +42,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState } = React;
+      const { useState, useEffect } = React;
 
       const COLS = 20;
       const ROWS = 20;
@@ -89,20 +90,25 @@
 
       // Componente principal: maneja el estado del juego
       function Game() {
-        const [score] = useState(0);
-
-        const [snakeSegments] = useState([
+        const [snake, setSnake] = useState([
           { x: 10, y: 10 },
           { x: 9,  y: 10 },
           { x: 8,  y: 10 },
         ]);
 
-        const [foodPosition] = useState({ x: 15, y: 10 });
+        const [food, setFood] = useState({ x: 15, y: 10 });
+
+        const [direction, setDirection] = useState({ x: 1, y: 0 });
+
+        const [score, setScore] = useState(0);
+
+        const [gameOver, setGameOver] = useState(false);
 
         return (
           <div>
             <Score score={score} />
-            <Board snakeSegments={snakeSegments} foodPosition={foodPosition} />
+            <Board snakeSegments={snake} foodPosition={food} />
+            {gameOver && <p>Game Over</p>}
           </div>
         );
       }

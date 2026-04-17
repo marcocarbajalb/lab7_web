@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Snake Game</title>
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: white;
+        font-family: monospace;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(20, 20px);
+        grid-template-rows: repeat(20, 20px);
+        border: 2px solid white;
+      }
+
+      .cell {
+        width: 20px;
+        height: 20px;
+      }
+
+      .cell.snake { background-color: limegreen; }
+      .cell.food  { background-color: red; }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      const COLS = 20;
+      const ROWS = 20;
+
+      // Muestra el puntaje actual
+      function Score({ score }) {
+        return <p>Puntaje: {score}</p>;
+      }
+
+      // Renderiza los segmentos de la serpiente
+      function Snake({ segments }) {
+        return (
+          <>
+            {segments.map((seg, i) => (
+              <div key={i} className="cell snake" />
+            ))}
+          </>
+        );
+      }
+
+      // Renderiza la comida en el tablero
+      function Food({ position }) {
+        return <div className="cell food" />;
+      }
+
+      // Renderiza el tablero como una grilla de celdas
+      function Board({ snakeSegments, foodPosition }) {
+        const cells = [];
+
+        for (let row = 0; row < ROWS; row++) {
+          for (let col = 0; col < COLS; col++) {
+            const isSnake = snakeSegments.some(s => s.x === col && s.y === row);
+            const isFood  = foodPosition.x === col && foodPosition.y === row;
+
+            let className = "cell";
+            if (isSnake) className += " snake";
+            if (isFood)  className += " food";
+
+            cells.push(<div key={`${row}-${col}`} className={className} />);
+          }
+        }
+
+        return <div className="board">{cells}</div>;
+      }
+
+      // Componente principal: maneja el estado del juego
+      function Game() {
+        const [score] = useState(0);
+
+        const [snakeSegments] = useState([
+          { x: 10, y: 10 },
+          { x: 9,  y: 10 },
+          { x: 8,  y: 10 },
+        ]);
+
+        const [foodPosition] = useState({ x: 15, y: 10 });
+
+        return (
+          <div>
+            <Score score={score} />
+            <Board snakeSegments={snakeSegments} foodPosition={foodPosition} />
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<Game />);
+    </script>
+  </body>
+</html>

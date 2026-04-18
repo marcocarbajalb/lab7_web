@@ -37,7 +37,7 @@
       .cell.snake { background-color: rgb(69, 187, 95); }
       .cell.food  { background-color: rgb(149, 7, 7); }
 
-      /* Pantalla de inicio / Game Over */
+      /* Pantalla de inicio y Game Over */
       .overlay {
         position: fixed;
         inset: 0;
@@ -78,9 +78,9 @@
       const ROWS = 20;
 
       const INITIAL_SNAKE = [
-        { x: 10, y: 10 },
-        { x: 9,  y: 10 },
-        { x: 8,  y: 10 },
+        {x:10, y:10},
+        {x:9,  y:10},
+        {x:8,  y:10},
       ];
 
       // Muestra el puntaje actual
@@ -140,15 +140,25 @@
 
       // Componente principal: maneja el estado del juego
       function Game() {
-        const [snake, setSnake]     = useState(INITIAL_SNAKE);
-        const [food, setFood]       = useState({ x: 15, y: 10 });
-        const [score, setScore]     = useState(0);
+        const [snake, setSnake] = useState(INITIAL_SNAKE);
+        const [food, setFood] = useState({x:15, y:10});
+        const [score, setScore] = useState(0);
         const [gameOver, setGameOver] = useState(false);
         const [started, setStarted] = useState(false);
 
-        // useRef para la dirección: el intervalo siempre lee el valor
-        // más reciente sin necesitar reiniciarse cuando cambia la tecla
-        const directionRef = useRef({ x: 1, y: 0 });
+        const directionRef = useRef({x:1, y:0});
+
+        // Genera una posición aleatoria que no esté ocupada por la serpiente
+        function randomFood(currentSnake) {
+          let pos;
+          do {
+            pos = {
+              x: Math.floor(Math.random()*COLS),
+              y: Math.floor(Math.random()*ROWS),
+            };
+          } while (currentSnake.some(s => s.x === pos.x && s.y === pos.y));
+          return pos;
+        }
 
         function handleStart() {
           setSnake(INITIAL_SNAKE);
@@ -164,11 +174,11 @@
           function handleKeyDown(e) {
             const { x, y } = directionRef.current;
 
-            // Evitar dirección inversa (ej: si vas a la derecha no puedes ir a la izquierda)
-            if (e.key === "ArrowUp"    && y !== 1)  directionRef.current = { x: 0, y: -1 };
-            if (e.key === "ArrowDown"  && y !== -1) directionRef.current = { x: 0, y: 1 };
-            if (e.key === "ArrowLeft"  && x !== 1)  directionRef.current = { x: -1, y: 0 };
-            if (e.key === "ArrowRight" && x !== -1) directionRef.current = { x: 1, y: 0 };
+            // Evitar dirección inversa
+            if (e.key==="ArrowUp" && y!==1)  directionRef.current = {x:0, y:-1};
+            if (e.key==="ArrowDown" && y!==-1) directionRef.current = {x:0, y:1};
+            if (e.key==="ArrowLeft" && x!==1)  directionRef.current = {x:-1, y:0};
+            if (e.key==="ArrowRight" && x!==-1) directionRef.current = {x:1, y:0};
           }
 
           window.addEventListener("keydown", handleKeyDown);
@@ -181,9 +191,9 @@
 
           const interval = setInterval(() => {
             setSnake(prevSnake => {
-              const { x: dx, y: dy } = directionRef.current;
-              const head    = prevSnake[0];
-              const newHead = { x: head.x + dx, y: head.y + dy };
+              const {x:dx, y:dy} = directionRef.current;
+              const head = prevSnake[0];
+              const newHead = {x:head.x + dx, y:head.y + dy};
 
               // Colisión con paredes
               if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
@@ -199,12 +209,10 @@
 
               // Come la comida: crece y genera nueva comida
               if (newHead.x === food.x && newHead.y === food.y) {
+                const newSnake = [newHead, ...prevSnake];
                 setScore(prev => prev + 1);
-                setFood({
-                  x: Math.floor(Math.random() * COLS),
-                  y: Math.floor(Math.random() * ROWS),
-                });
-                return [newHead, ...prevSnake];
+                setFood(randomFood(newSnake));
+                return newSnake;
               }
 
               // Movimiento normal
